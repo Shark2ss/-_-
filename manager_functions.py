@@ -1,5 +1,6 @@
 import sqlite3
 
+
 class ManagerFunctions:
     @staticmethod
     def view_clients():

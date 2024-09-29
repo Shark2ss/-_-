@@ -71,78 +71,78 @@ class RealEstateApp:
         self.clear_window()
         self.create_title("Реєстрація")
 
-        tk.Label(self.root, text="Назва фірми", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=52)
-        firm_entry = tk.Entry(self.root)
-        firm_entry.place(x=340, y=54)
-        firm_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        firm_error.place(x=340, y=78)
+        self.create_form(
+            [
+                ("Назва фірми", 52),
+                ("Ім'я", 92),
+                ("Номер телефону", 132),
+                ("Тип послуги", 172, ["Купівля", "Оренда"]),
+            ],
+            self.register_client,
+            self.client_menu,
+        )
 
-        tk.Label(self.root, text="Ім'я", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=92)
-        name_entry = tk.Entry(self.root)
-        name_entry.place(x=340, y=94)
-        name_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        name_error.place(x=340, y=118)
+    def create_form(self, fields, submit_command, back_command):
+        entries = {}
+        errors = {}
 
-        tk.Label(self.root, text="Номер телефону", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=132)
-        phone_entry = tk.Entry(self.root)
-        phone_entry.place(x=340, y=134)
-        phone_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        phone_error.place(x=340, y=158)
-
-        tk.Label(self.root, text="Тип послуги", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=172)
-        type_combobox = ttk.Combobox(self.root, values=["Купівля", "Оренда"])
-        type_combobox.place(x=340, y=174)
-        type_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        type_error.place(x=340, y=198)
-
-        def validate_phone(phone):
-            pattern = r'^0\d{9}$'
-            return re.match(pattern, phone)
-
-        def register():
-            firm = firm_entry.get()
-            name = name_entry.get()
-            phone = phone_entry.get()
-            type = type_combobox.get()
-            valid = True
-
-            if not firm:
-                firm_error.config(text="Назва фірми не може бути порожньою")
-                valid = False
+        for field_info in fields:
+            if len(field_info) == 3:
+                field, y, options = field_info
             else:
-                firm_error.config(text="")
+                field, y = field_info
+                options = None
 
-            if not name:
-                name_error.config(text="Ім'я не може бути порожнім")
-                valid = False
-            else:
-                name_error.config(text="")
+            tk.Label(self.root, text=field, font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=y)
 
-            if not phone:
-                phone_error.config(text="Номер телефону не може бути порожнім")
-                valid = False
-            elif not validate_phone(phone):
-                phone_error.config(text="Номер телефону повинен бути у форматі 0ХХХХХХХХХ")
-                valid = False
-            else:
-                phone_error.config(text="")
-                phone = "380" + phone[1:]  # Додавання коду країни 380
+            # Якщо є опції, використовуємо випадаючий список, інакше звичайне текстове поле
+            entry = ttk.Combobox(self.root, values=options) if options else tk.Entry(self.root)
+            entry.place(x=340, y=y + 2)
+            entries[field] = entry
 
-            if not type:
-                type_error.config(text="Тип послуги не може бути порожнім")
-                valid = False
-            else:
-                type_error.config(text="")
+            error_label = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
+            error_label.place(x=340, y=y + 24)
+            errors[field] = error_label
 
-            if valid:
-                ClientFunctions.registration(firm, name, phone, type)
-                messagebox.showinfo("Успіх", "Реєстрація успішна")
-                self.client_menu()
-            else:
-                messagebox.showerror("Помилка", "Будь ласка, заповніть всі поля правильно")
+        self.create_button("Зареєструватись", lambda: submit_command(entries, errors)).place(x=300, y=300)
+        self.create_button("Назад", back_command).place(x=300, y=350)
 
-        self.create_button("Зареєструватись", register).place(x=300, y=222)
-        self.create_button("Назад", self.client_menu).place(x=300, y=272)
+    def register_client(self, entries, errors):
+        firm, name, phone, service_type = entries["Назва фірми"].get(), entries["Ім'я"].get(), entries["Номер телефону"].get(), entries["Тип послуги"].get()
+        valid = True
+
+        valid = self.validate_input(firm, errors["Назва фірми"], "Назва фірми не може бути порожньою") and valid
+        valid = self.validate_input(name, errors["Ім'я"], "Ім'я не може бути порожнім") and valid
+        valid = self.validate_phone(phone, errors["Номер телефону"]) and valid
+        valid = self.validate_input(service_type, errors["Тип послуги"], "Тип послуги не може бути порожнім") and valid
+
+        if valid:
+            phone = "380" + phone[1:]  # Add country code
+            ClientFunctions.registration(firm, name, phone, service_type)
+            messagebox.showinfo("Успіх", "Реєстрація успішна")
+            self.client_menu()
+        else:
+            messagebox.showerror("Помилка", "Будь ласка, заповніть всі поля правильно")
+
+    def validate_input(self, value, error_label, error_message):
+        if not value:
+            error_label.config(text=error_message)
+            return False
+        else:
+            error_label.config(text="")
+            return True
+
+    def validate_phone(self, phone, error_label):
+        pattern = r'^0\d{9}$'
+        if not phone:
+            error_label.config(text="Номер телефону не може бути порожнім")
+            return False
+        elif not re.match(pattern, phone):
+            error_label.config(text="Номер телефону повинен бути у форматі 0ХХХХХХХХХ")
+            return False
+        else:
+            error_label.config(text="")
+            return True
 
     def view_properties(self):
         self.clear_window()
@@ -155,16 +155,7 @@ class RealEstateApp:
         self.create_button("Назад", self.client_menu).pack(pady=5)
 
     def most_expensive_property(self):
-
-        self.clear_window()
-        self.create_title("Найдорожча нерухомість")
-
-        columns = ('ID', 'Адреса', 'Площа', 'Рік побудови', 'Поверх', 'Ціна', 'Кількість кімнат')
-        property = [ClientFunctions.most_expensive_property()]
-        print(property)
-        self.create_table(columns, property)
-
-        self.create_button("Назад", self.client_menu).pack(pady=5)
+        self.display_single_property("Найдорожча нерухомість", ClientFunctions.most_expensive_property)
 
     def average_property_price(self):
         self.clear_window()
@@ -176,11 +167,14 @@ class RealEstateApp:
         self.create_button("Назад", self.client_menu).pack(pady=5)
 
     def property_with_most_rooms(self):
+        self.display_single_property("Нерухомість з найбільшою кількістю кімнат", ClientFunctions.property_with_most_rooms)
+
+    def display_single_property(self, title, property_function):
         self.clear_window()
-        self.create_title("Нерухомість з найбільшою кількістю кімнат")
+        self.create_title(title)
 
         columns = ('ID', 'Адреса', 'Площа', 'Рік побудови', 'Поверх', 'Ціна', 'Кількість кімнат')
-        property = [ClientFunctions.property_with_most_rooms()]
+        property = [property_function()]
         self.create_table(columns, property)
 
         self.create_button("Назад", self.client_menu).pack(pady=5)
@@ -208,129 +202,63 @@ class RealEstateApp:
         self.clear_window()
         self.create_title("Додати нову нерухомість")
 
-        tk.Label(self.root, text="Адреса", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=52)
-        address_entry = tk.Entry(self.root)
-        address_entry.place(x=340, y=54)
-        address_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        address_error.place(x=340, y=78)
+        self.create_form(
+            [
+                ("Адреса", 52),
+                ("Площа", 92),
+                ("Рік побудови", 132),
+                ("Поверх", 172),
+                ("Ціна", 212),
+                ("Кількість кімнат", 252)
+            ],
+            self.register_property,
+            self.realtor_menu,
+        )
 
-        tk.Label(self.root, text="Площа", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=92)
-        area_entry = tk.Entry(self.root)
-        area_entry.place(x=340, y=94)
-        area_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        area_error.place(x=340, y=118)
+    def register_property(self, entries, errors):
+        address, area, year, floor, price, rooms = (
+            entries["Адреса"].get(),
+            entries["Площа"].get(),
+            entries["Рік побудови"].get(),
+            entries["Поверх"].get(),
+            entries["Ціна"].get(),
+            entries["Кількість кімнат"].get()
+        )
 
-        tk.Label(self.root, text="Рік побудови", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=132)
-        year_entry = tk.Entry(self.root)
-        year_entry.place(x=340, y=134)
-        year_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        year_error.place(x=340, y=158)
+        valid = True
+        valid = self.validate_input(address, errors["Адреса"], "Адреса не може бути порожньою") and valid
+        valid = self.validate_input(area, errors["Площа"], "Площа не може бути порожньою") and valid
+        valid = self.validate_input(year, errors["Рік побудови"], "Рік побудови не може бути порожнім") and valid
+        valid = self.validate_input(floor, errors["Поверх"], "Поверх не може бути порожнім") and valid
+        valid = self.validate_input(price, errors["Ціна"], "Ціна не може бути порожньою") and valid
+        valid = self.validate_input(rooms, errors["Кількість кімнат"], "Кількість кімнат не може бути порожньою") and valid
 
-        tk.Label(self.root, text="Поверх", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=172)
-        floor_entry = tk.Entry(self.root)
-        floor_entry.place(x=340, y=174)
-        floor_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        floor_error.place(x=340, y=198)
-
-        tk.Label(self.root, text="Ціна", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=212)
-        price_entry = tk.Entry(self.root)
-        price_entry.place(x=340, y=214)
-        price_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        price_error.place(x=340, y=238)
-
-        tk.Label(self.root, text="Кількість кімнат", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=252)
-        rooms_entry = tk.Entry(self.root)
-        rooms_entry.place(x=340, y=254)
-        rooms_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        rooms_error.place(x=340, y=278)
-
-        def add():
-            address = address_entry.get()
-            area = area_entry.get()
-            year = year_entry.get()
-            floor = floor_entry.get()
-            price = price_entry.get()
-            rooms = rooms_entry.get()
-            valid = True
-
-            if not address:
-                address_error.config(text="Адреса не може бути порожньою")
-                valid = False
-            else:
-                address_error.config(text="")
-
-            if not area:
-                area_error.config(text="Площа не може бути порожньою")
-                valid = False
-            else:
-                area_error.config(text="")
-
-            if not year:
-                year_error.config(text="Рік побудови не може бути порожнім")
-                valid = False
-            else:
-                year_error.config(text="")
-
-            if not floor:
-                floor_error.config(text="Поверх не може бути порожнім")
-                valid = False
-            else:
-                floor_error.config(text="")
-
-            if not price:
-                price_error.config(text="Ціна не може бути порожньою")
-                valid = False
-            else:
-                price_error.config(text="")
-
-            if not rooms:
-                rooms_error.config(text="Кількість кімнат не може бути порожньою")
-                valid = False
-            else:
-                rooms_error.config(text="")
-
-            if valid:
-                area = int(area)
-                year = int(year)
-                floor = int(floor)
-                price = float(price)
-                rooms = int(rooms)
-
-                RealtorFunctions.add_property(address, area, year, floor, price, rooms)
-                messagebox.showinfo("Успіх", "Нерухомість додана успішно")
-                self.realtor_menu()
-            else:
-                messagebox.showerror("Помилка", "Будь ласка, заповніть всі поля правильно")
-
-        self.create_button("Додати", add).place(x=280, y=302)
-        self.create_button("Назад", self.realtor_menu).place(x=280, y=362)
+        if valid:
+            RealtorFunctions.add_property(address, area, year, floor, price, rooms)
+            messagebox.showinfo("Успіх", "Нерухомість додана")
+            self.realtor_menu()
+        else:
+            messagebox.showerror("Помилка", "Будь ласка, заповніть всі поля правильно")
 
     def delete_property(self):
         self.clear_window()
         self.create_title("Видалити нерухомість")
 
-        tk.Label(self.root, text="ID нерухомості", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=72)
+        tk.Label(self.root, text="ID нерухомості", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=52)
         id_entry = tk.Entry(self.root)
-        id_entry.place(x=340, y=74)
-        id_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        id_error.place(x=340, y=98)
+        id_entry.place(x=340, y=54)
 
         def delete():
             property_id = id_entry.get()
-            if not property_id:
-                id_error.config(text="ID нерухомості не може бути порожнім")
-                messagebox.showerror("Помилка", "Будь ласка, введіть ID нерухомості")
-                return
+            if property_id:
+                RealtorFunctions.delete_property(property_id)
+                messagebox.showinfo("Успіх", "Нерухомість видалена")
+                self.realtor_menu()
             else:
-                id_error.config(text="")
+                messagebox.showerror("Помилка", "Будь ласка, введіть ID нерухомості")
 
-            property_id = int(property_id)
-            RealtorFunctions.delete_property(property_id)
-            messagebox.showinfo("Успіх", "Нерухомість видалена успішно")
-            self.realtor_menu()
-
-        self.create_button("Видалити", delete).place(x=280, y=112)
-        self.create_button("Назад", self.realtor_menu).place(x=280, y=162)
+        self.create_button("Видалити", delete).place(x=300, y=100)
+        self.create_button("Назад", self.realtor_menu).place(x=300, y=150)
 
     def manager_menu(self):
         self.clear_window()
@@ -345,7 +273,7 @@ class RealEstateApp:
         self.clear_window()
         self.create_title("Список клієнтів")
 
-        columns = ('ID', 'Назва фірми', 'Ім\'я', 'Номер телефону', 'Тип послуги', 'ID нерухомості')
+        columns = ('ID', 'Назва фірми', "Ім'я", 'Номер телефону', 'Тип послуги')
         clients = ManagerFunctions.view_clients()
         self.create_table(columns, clients)
 
@@ -355,7 +283,7 @@ class RealEstateApp:
         self.clear_window()
         self.create_title("Список ріелторів")
 
-        columns = ('ID', 'Назва фірми', 'Ім\'я', 'Адреса', 'Номер телефону')
+        columns = ('ID', "Ім'я", 'Номер телефону')
         realtors = ManagerFunctions.view_realtors()
         self.create_table(columns, realtors)
 
@@ -363,80 +291,31 @@ class RealEstateApp:
 
     def add_realtor(self):
         self.clear_window()
-        self.create_title("Додати нового ріелтора")
+        self.create_title("Додати ріелтора")
 
-        tk.Label(self.root, text="Назва фірми", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=52)
-        firm_entry = tk.Entry(self.root)
-        firm_entry.place(x=340, y=54)
-        firm_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        firm_error.place(x=340, y=78)
+        self.create_form(
+            [
+                ("Ім'я", 52),
+                ("Номер телефону", 92),
+            ],
+            self.register_realtor,
+            self.manager_menu,
+        )
 
-        tk.Label(self.root, text="Ім'я", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=92)
-        name_entry = tk.Entry(self.root)
-        name_entry.place(x=340, y=94)
-        name_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        name_error.place(x=340, y=118)
+    def register_realtor(self, entries, errors):
+        name, phone = entries["Ім'я"].get(), entries["Номер телефону"].get()
 
-        tk.Label(self.root, text="Адреса", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=132)
-        address_entry = tk.Entry(self.root)
-        address_entry.place(x=340, y=134)
-        address_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        address_error.place(x=340, y=158)
+        valid = True
+        valid = self.validate_input(name, errors["Ім'я"], "Ім'я не може бути порожнім") and valid
+        valid = self.validate_phone(phone, errors["Номер телефону"]) and valid
 
-        tk.Label(self.root, text="Номер телефону", font=('Helvetica', 10, 'bold'), bg='#add8e6').place(x=220, y=172)
-        phone_entry = tk.Entry(self.root)
-        phone_entry.place(x=340, y=174)
-        phone_error = tk.Label(self.root, text="", font=('Helvetica', 8), fg='red', bg='#add8e6')
-        phone_error.place(x=340, y=198)
-
-        def validate_phone(phone):
-            pattern = r'^0\d{9}$'
-            return re.match(pattern, phone)
-
-        def add():
-            firm = firm_entry.get()
-            name = name_entry.get()
-            address = address_entry.get()
-            phone = phone_entry.get()
-            valid = True
-
-            if not firm:
-                firm_error.config(text="Назва фірми не може бути порожньою")
-                valid = False
-            else:
-                firm_error.config(text="")
-
-            if not name:
-                name_error.config(text="Ім'я не може бути порожнім")
-                valid = False
-            else:
-                name_error.config(text="")
-
-            if not address:
-                address_error.config(text="Адреса не може бути порожньою")
-                valid = False
-            else:
-                address_error.config(text="")
-
-            if not phone:
-                phone_error.config(text="Номер телефону не може бути порожнім")
-                valid = False
-            elif not validate_phone(phone):
-                phone_error.config(text="Номер телефону повинен бути у форматі 0ХХХХХХХХХ")
-                valid = False
-            else:
-                phone_error.config(text="")
-                phone = "380" + phone[1:]  # Додавання коду країни 380
-
-            if valid:
-                ManagerFunctions.add_realtor(firm, name, address, phone)
-                messagebox.showinfo("Успіх", "Ріелтор доданий успішно")
-                self.manager_menu()
-            else:
-                messagebox.showerror("Помилка", "Будь ласка, заповніть всі поля правильно")
-
-        self.create_button("Додати", add).place(x=280, y=222)
-        self.create_button("Назад", self.manager_menu).place(x=280, y=272)
+        if valid:
+            phone = "380" + phone[1:]  # Add country code
+            ManagerFunctions.add_realtor(name, phone)
+            messagebox.showinfo("Успіх", "Ріелтор доданий")
+            self.manager_menu()
+        else:
+            messagebox.showerror("Помилка", "Будь ласка, заповніть всі поля правильно")
 
 
 if __name__ == "__main__":
